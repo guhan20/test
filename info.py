@@ -4,12 +4,26 @@ from os import environ
 
 id_pattern = re.compile(r'^.\d+$')
 def is_enabled(value, default):
-    if value.lower() in ["true", "yes", "1", "enable", "y"]:
-        return True
-    elif value.lower() in ["false", "no", "0", "disable", "n"]:
-        return False
-    else:
+    """Normalise environment-style truthy and falsy values.
+
+    ``environ`` always returns strings, but some callers pass in booleans or
+    ``None`` during tests.  Coerce to ``str`` only when a value is provided so
+    the helper can gracefully fall back to ``default`` when unset.
+    """
+
+    if value is None:
         return default
+
+    if isinstance(value, str):
+        normalised = value.strip().lower()
+    else:
+        normalised = str(value).lower()
+
+    if normalised in {"true", "yes", "1", "enable", "y", "on"}:
+        return True
+    if normalised in {"false", "no", "0", "disable", "n", "off"}:
+        return False
+    return default
 
 def redirected_env(value):
     value = str(value)
@@ -28,7 +42,11 @@ BOT_TOKEN = environ['BOT_TOKEN']
 
 # Bot settings
 CACHE_TIME = int(environ.get('CACHE_TIME', 300))
-USE_CAPTION_FILTER = bool(environ.get('USE_CAPTION_FILTER', False))
+# Boolean environment flags should honour string values such as "True" or
+# "False".  Using ``bool(environ.get(...))`` converts every non-empty string to
+# ``True``, so setting ``USE_CAPTION_FILTER=False`` in the environment could not
+# disable the feature.  ``is_enabled`` performs the intended normalisation.
+USE_CAPTION_FILTER = is_enabled(environ.get('USE_CAPTION_FILTER', "False"), False)
 PICS = (environ.get('PICS', 'https://telegra.ph/file/7e56d907542396289fee4.jpg https://telegra.ph/file/9aa8dd372f4739fe02d85.jpg https://telegra.ph/file/adffc5ce502f5578e2806.jpg https://telegra.ph/file/6937b60bc2617597b92fd.jpg https://telegra.ph/file/09a7abaab340143f9c7e7.jpg https://telegra.ph/file/5a82c4a59bd04d415af1c.jpg https://telegra.ph/file/323986d3bd9c4c1b3cb26.jpg https://telegra.ph/file/b8a82dcb89fb296f92ca0.jpg https://telegra.ph/file/31adab039a85ed88e22b0.jpg https://telegra.ph/file/c0e0f4c3ed53ac8438f34.jpg https://telegra.ph/file/eede835fb3c37e07c9cee.jpg https://telegra.ph/file/e17d2d068f71a9867d554.jpg https://telegra.ph/file/8fb1ae7d995e8735a7c25.jpg https://telegra.ph/file/8fed19586b4aa019ec215.jpg https://telegra.ph/file/8e6c923abd6139083e1de.jpg https://telegra.ph/file/0049d801d29e83d68b001.jpg')).split()
 
 # Admins, Channels & Users
@@ -57,7 +75,7 @@ BATCH_FILE_CAPTION = environ.get("BATCH_FILE_CAPTION", CUSTOM_FILE_CAPTION)
 
 #///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMDB_TEMPLATE_2 = environ.get("IMDB_TEMPLATE_2)", """<b>📜  Title: <code>{title}</code>
+IMDB_TEMPLATE_2 = environ.get("IMDB_TEMPLATE_2", """<b>📜  Title: <code>{title}</code>
 ⚜️ Also Known As: {aka}
 🌟 Rating : {rating} / 10</b>
 <code>({rating} based on {votes} user ratings)</code>
