@@ -4,12 +4,26 @@ from os import environ
 
 id_pattern = re.compile(r'^.\d+$')
 def is_enabled(value, default):
-    if value.lower() in ["true", "yes", "1", "enable", "y"]:
-        return True
-    elif value.lower() in ["false", "no", "0", "disable", "n"]:
-        return False
-    else:
+    """Normalise environment-style truthy and falsy values.
+
+    ``environ`` always returns strings, but some callers pass in booleans or
+    ``None`` during tests.  Coerce to ``str`` only when a value is provided so
+    the helper can gracefully fall back to ``default`` when unset.
+    """
+
+    if value is None:
         return default
+
+    if isinstance(value, str):
+        normalised = value.strip().lower()
+    else:
+        normalised = str(value).lower()
+
+    if normalised in {"true", "yes", "1", "enable", "y", "on"}:
+        return True
+    if normalised in {"false", "no", "0", "disable", "n", "off"}:
+        return False
+    return default
 
 def redirected_env(value):
     value = str(value)
